@@ -135,6 +135,7 @@ library(kableExtra)
       geom_line(aes(x = time, y = temp)) +
       geom_hline(yintercept = 37.2, col = "blue", linetype = 2) +
       annotate("text", label = "37.2 ºC", x = 27, y = 37.3, size = 3, col = "blue") +
+      theme_light() +
       facet_grid(beaver ~ . ) +
       labs(title = "Temperature Change", col = "status") +
       ylab("temperature")
