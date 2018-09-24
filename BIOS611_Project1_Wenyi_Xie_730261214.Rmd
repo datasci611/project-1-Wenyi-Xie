@@ -1,0 +1,297 @@
+---
+title: "BIOS 611 Project 1"
+author: "Wenyi_Xie_730261214"
+date: "September 21, 2018"
+output: 
+  html_document: 
+    theme: readable
+---
+
+```{r, include = FALSE}
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+# 1. Dataset 1: `ChickWeight`
+
+* ## Read data into R
+    ```{r}
+    cw <- as.tibble(ChickWeight)
+    ```
+
+* ## Figure
+
+    ```{r, fig.cap = "Fig 1.1: Weight versus Age of Chicks on Different Diets", fig.align = "center", echo = FALSE}
+    cw %>%
+      ggplot() +
+      geom_smooth(aes(x = Time, y = weight, col = Diet), alpha = 0.2, size = 1.2, method = "loess") +
+      geom_point(aes(x = Time, y = weight, col = Diet), alpha = 0.3) +
+      # labs(title = "Growth Trend of Each Diet Type") +
+      theme_light()
+    ```
+
+
+    ```{r, fig.cap = "Fig 1.2: Distribution of Chick Weight", fig.align = "center", echo = FALSE}
+    cw %>% 
+      ggplot(aes(x = as.factor(Time), y = weight)) +
+      geom_boxplot(aes(col = reorder(Diet, weight, fun = median)), outlier.alpha = 0.5) +
+      xlab("Time") + 
+      labs(col = "Diet") +
+      theme_light()
+    ```
+
+
+    ```{r , fig.cap = "Fig 1.3: Growth Rate of Chicks on Different Diets", fig.align = "center", echo = FALSE}
+    cw %>%
+      group_by(Chick) %>%
+      mutate(pre.weight = lag(weight), pre.time = lag(Time), grow.rate = (weight- pre.weight)/(Time - pre.time)) %>%
+      filter(!is.na(pre.weight) & !is.na(pre.weight)) %>%
+      ungroup() %>%
+      ggplot() +
+      geom_smooth(aes(x = Time, y = grow.rate, col = Diet), alpha = 0.2, size = 1.2, method = "loess") +
+      geom_point(aes(x = Time, y = grow.rate, col = Diet), alpha = .3) +
+      coord_cartesian(ylim = c(-5, 20)) +
+      ylab("growth rate") +
+      #labs(title = "Growth Rate over Time Within Each Diet Type") +
+      theme_light()
+    ```
+    
+    
+* ## Function
+
+    ```{r, fig.cap = "Table 1: Mean and Standard Deviation on Diet Type and Measurement Day", echo = FALSE}
+    cw.1 <- cw %>%
+      group_by(Diet, Time) %>% 
+      summarise(WeightMean = round(mean(weight), 2)) %>%
+      spread(key = Time, value = WeightMean) %>%
+      mutate(name = "Mean") %>%
+      select(Diet, name, everything()) 
+      
+    cw.2 <- cw %>%
+      group_by(Diet, Time) %>% 
+      summarise(WeightSd = round(sd(weight), 2)) %>%
+      spread(key = Time, value = WeightSd) %>%
+      mutate(name = "StandardDeviation") %>%
+      select(Diet, name, everything()) 
+    
+    rbind(cw.1, cw.2) %>%
+      arrange(Diet) %>% 
+      ungroup() %>%
+      select(-Diet) %>%
+      kable(col.names = c("", seq(0, 20, by= 2), 21), caption = "Table 1: Mean and Standard Deviation on Diet Type and Measurement Day") %>%
+      kable_styling(bootstrap_options = c("striped", "hover"), full_width = F) %>%
+      group_rows("Diet 1", 1, 2) %>%
+      group_rows("Diet 2", 3, 4) %>%
+      group_rows("Diet 3", 5, 6) %>%
+      group_rows("Diet 4", 7, 8) %>%
+      add_header_above(c("Diet Type", "Measurement Day" = 12))
+    ```
+
+
+* ## Result
+
+- Background Description
+
+    The figures were deprived from `ChickWeight` dataset from R. It describes an experiment on the effect of four different protein diets on early growth of chicks, containing 578 rows and 4 columns. The body weight of the chicks were measured at birth and every second day thereafter until day 20. Day 21 data was also included. 
+
+- Key Findings
+
+    * There seems to exist a clear distinction among those four diet types. Diet one performs the worst in supporting chicks' growth. Diet two performs a little bit better but not as good as diet three and diet four. With regard to the performance of diet three and diet four, diet four helps chicken grow faster in the first 12 days since they were born, yet diet three has a better performance in the long term run.
+    * The variance and mean of weight of chicken get larger and larger as time goes on which is consistent with our cognition that growth brings diversity and variability. The variance within Diet four group is the smallest of all diet groups.
+    * The growth rate is calculated based on $GrowthRate = \frac{WeightAtTime_{t+1} - WeightAt Time_{t}}{Time_{t+1} - Time_t}$. Chicken fed with diet one grow the slowest all the time. Diet two performs a little better. Diet four shows an excellent work at the beginning but slows down the growth rate of chicken at around day 10. After day 14, the growth rate of chicken within diet four group dropped even below that of chicken within diet two group. Diet three performs the second best at the beginning. There is a spurge in growth rate at day 12 making diet three the best one when the study closed.
+    
+    
+- Future Steps
+
+    Given the unequal and relative small sample size of each diet, it would be interesting to look at how the sample size affects our results. 
+    
+---
+
+
+# 2. Dataset 2: `Beaver1` & `Beaver2`
+
+* ## Read data into R
+    ```{r}
+    beaver1 <- as.tibble(beaver1)
+    beaver1 <- beaver1 %>% mutate(beaver = 1)
+    beaver2 <- as.tibble(beaver2)
+    beaver2 <- beaver2 %>% mutate(beaver = 2)
+    beaver <- rbind(beaver1, beaver2)
+    ```
+
+
+* ## Figure
+    ```{r, fig.cap = "Fig 2: Body Temperature Series of Two Beavers", fig.align = "center", echo = FALSE}
+    beaver %>%
+      mutate(hour = (time %/% 100),
+             minute = (time %% 100),
+             activ.1 = factor(ifelse(activ == 1, 0, 1),levels = c(0, 1),labels = c("active", "inactive")),
+             time = case_when(beaver == 1 ~ hour + minute/60 + (day - 346)*24,
+                              beaver == 2 ~ hour + minute/60 + (day - 307)*24)) %>%
+      ggplot() +
+      geom_point(aes(x = time, y = temp, col = as.factor(activ.1))) +
+      geom_line(aes(x = time, y = temp)) +
+      geom_hline(yintercept = 37.2, col = "blue", linetype = 2) +
+      annotate("text", label = "37.2 ºC", x = 27, y = 37.3, size = 3, col = "blue") +
+      facet_grid(beaver ~ . ) +
+      labs(title = "Temperature Change", col = "status") +
+      ylab("temperature")
+    ```
+
+* ## Function
+
+    I am interested in the average body temperature of beavers. Given that temperature changes a lot under different activity status, I calculate average temprature for both active and non-active status.
+
+    ```{r, echo = FALSE}
+    beaver %>%
+      mutate(activ.1 = factor(ifelse(activ == 1, 0, 1),levels = c(0, 1),labels = c("active", "inactive"))) %>%
+      group_by(beaver, activ.1) %>% 
+      summarise(mean = mean(temp)) %>%
+      mutate(mean = round(mean, 2)) %>%
+      rename(Beaver = beaver,
+             ActivityStatus = activ.1,
+             AverageTemperature = mean) %>%
+      kable(caption = "Table 2: \n Average Temperature of Beaver Active and Inactive") %>%
+      kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+    ```
+
+* ## Result
+
+- Background Introduction
+
+    The figure was deprived from `beaver1` and `beaver2` datasets from R. Those datasets describe a small part of a study of the long-term temperature dynamics of beaver *Castor canadensis* in north-central Wisconsin. Two beavers are included. Body temperature was measured by telemetry every 10 minutes. The original source is *P. S. Reynolds (1994) Time-series analyses of beaver body temperatures. Chapter 11 of Lange, N., Ryan, L., Billard, L., Brillinger, D., Conquest, L. and Greenhouse, J. eds (1994) Case Studies in Biometry. New York: John Wiley and Sons.*. The `beaver1` data frame has 114 rows and 4 columns on body temperature. The `beaver2` data frame has 100 rows and 4 columns on body temperature. 
+
+- Key Findings
+
+    * By looking at variables listed, I noticed that `activ`, the indicator of activity outside the retreat, is a key factor influencing the body temperature. An active status of beavers often comes with the peak of their body temperatures. When a beaver turn from inactive to active, its temperature rises and then gets back to inactive status as temperature decreases. 
+    * Beavers' body temperature does vary all the time during the day, though. Even when they are inactive, their body temperature fluctuates a lot.
+
+* Future Steps
+
+    For the next step, it would be interesting to see how to anticipate a beaver's movement by looking at its temperature fluctuation, and, if possible, collect more data on beavers as two samples may do well in depicting a primary picture but are far less for generating a reliable and robust conclusion. 
+
+
+---
+
+# 3. Dataset 3: `CO2`
+
+* ## Read Data into R
+
+    ```{r}
+    CO2 <- as.tibble(CO2)
+    ```
+
+* ## Figure
+
+    ```{r, fig.cap = "Fig 3: Carbon Dioxide Uptake in Grass Plants", fig.align = "center", echo = FALSE}
+    CO2 %>%
+      group_by(Type, Treatment) %>%
+      mutate(mean = mean(uptake),
+             com = case_when(Type == "Quebec" & Treatment == "nonchilled" ~ 26.0,
+                             Type == "Mississippi" & Treatment == "nonchilled" ~ 35.3,
+                             Type == "Quebec" & Treatment == "chilled" ~ 15.8,
+                             Type == "Mississippi" & Treatment == "chilled" ~ 31.8)) %>% 
+      ggplot() +
+      geom_point(aes(x = conc, y = uptake, col = Plant)) +
+      geom_line(aes(x = conc, y = uptake, col = Plant)) +
+      facet_grid(Type ~ Treatment) +
+      geom_hline(aes(yintercept = mean, col = Plant), size = 1, alpha = 0.8) +
+      geom_hline(aes(yintercept = com, col = Plant), linetype = "longdash") + 
+      theme_light() +
+      labs(caption = "* Dashed Lines : average CO2 uptake level from the other origin under same treatment") +
+      xlab("CO2 Concentration") +
+      ylab("CO2 Uptake Rate")
+    ```
+
+
+* ## Function
+
+    I am interested in the average carbon dioxide uptake rate in the group combination of plant origin and treatment.
+
+    ```{r, echo = FALSE}
+    CO2 %>%
+      group_by(Type, Treatment, conc) %>%
+      summarise(mean.rt = mean(uptake)) %>%
+      arrange(Type, Treatment, conc) %>%
+      mutate(mean.rt = round(mean.rt, 2)) %>%
+      spread(key = conc, value = mean.rt) %>%
+      kable(caption = "Table 3: CO2 Uptook by Grass Plants under Different CO2 density") %>%
+      kable_styling(bootstrap_options = c("striped", "hover"))
+    ```
+
+
+* ## Result
+
+- Background Introduction
+
+    The figure was derived from the `CO2` datasets in `R`, which is obtained from *Potvin, C., Lechowicz, M. J. and Tardif, S. (1990) “The statistical analysis of ecophysiological response curves obtained from experiments involving repeated measures”, Ecology, 71, 1389–1400.*.The `CO2` dataset describes an experiment on the cold tolerance of the grass species *Echinochloa scrus-galli*. The data frame has 85 rows and 5 columns. It records the CO2 uptake rate of six plants from Quebec and six plants from Mississippi measured at several levels of ambient CO2 concentration. Half the plants from each origin were chilled overnight before the experiment was conducted.
+
+- Key finding
+
+    * The CO2 uptake rate increases as CO2 concentration becomes denser for all 12 plants. Slight decrease does occur for some plants at some points but that does not affect the overall increasing trend. CO2 uptake rate grows faster when the plant's in a lower CO2 concentration environment making the trend steep at low density CO2 concentration and rather flat in high density CO2 environment. After passing a specific point of CO2 concentration, the CO2 uptake rate no longer increase and plants are saturated with CO2.
+    * Plants from Quebec without previous chill treatment uptake more CO2 than plants from Mississippi also without previous treatment even that they are at the same CO2 concentration level. Same applied to plants after chilled treatment. Therefore, we could see that plants from Quebec absorb more CO2 than plants from Mississippi.
+    * After chilled treatment, plants from both Quebec and Mississippi uptake less CO2 than those from the same origin while not having undergone the chilled treatment. The interesting thing is although CO2 comsumption drops after treatment, the extent to which it drops differ between Quebec plants and Mississippi plants. Plants from Quebec reduce the CO2 they consume after chilled treatment, yet the change is not significant at all if compared with that of plants from Mississippi.
+
+- Future Steps
+
+    For next steps, it would be interesting to look at the difference among speeds at which the CO2 uptake rate change under pre-treatment condition of different chilled temperature. With enough information, it's highly possible to conclude a reliable relationship between temperature of pretreatment and plants' CO2 uptake rate when they are saturated.
+    
+---
+
+# 4. Dataset 4: `Orange`
+
+* ## Read Data into R
+
+    ```{r}
+    data("Orange")
+    Orange <- as.tibble(Orange)
+    ```
+
+* ## Figure
+
+    ```{r, fig.cap = "Fig 4: Age versus Trunk Circumference of Five Orange Trees", fig.align = "center", echo = FALSE}
+    Orange %>%
+    ggplot() +
+      annotate("rect", xmin = 1372, xmax = 1582, ymin = 20, ymax = 20 + max(filter(Orange, age == 1582)$circumference), alpha = .6, fill = "lightblue") +
+      geom_point(aes(age, circumference, col = Tree)) +
+      # geom_smooth(aes(age, circumference)) +
+      geom_line(aes(age,circumference, col = Tree)) +
+      geom_vline(xintercept = 484, linetype = "longdash", col = "lightblue") +
+      geom_vline(xintercept = 1231, linetype = "longdash", col = "lightblue") +
+      scale_color_discrete(breaks=c("1","2","3","4","5")) +
+      annotate("text", x = 520, y = 200, label = "growth speed up \n at age 484", col = "darkblue", parse = F, size = 4) +
+      annotate("text", x = 1200, y = 50, label = "growth speed up \n at age 1231", col = "darkblue", parse = F, size = 4) +
+      coord_cartesian(ylim = c(30, 220))  +
+      labs(col = "Tree") +
+      theme_light()
+    ```
+
+
+* ## Function
+
+    ```{r, echo = FALSE}
+    Orange %>%
+      rename(Age = age) %>%
+      group_by(Age) %>%
+      summarise(AveCircumference = mean(circumference)) %>%
+      kable(caption = "Table 4: Average Orange Tree Circumference over Age") %>%
+      kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+    ```
+
+* ## Result
+
+- Background Introduction
+
+    The figure was deprived from `Orange` dataset from R, obtained from *Draper, N. R. and Smith, H. (1998), Applied Regression Analysis (3rd ed), Wiley (exercise 24.N).* and *Pinheiro, J. C. and Bates, D. M. (2000) Mixed-effects Models in S and S-PLUS, Springer.*. It holds records of the growth of five orange trees, including the age and circumference. It has 35 rows and 3 columns. 
+
+- Key Findings
+
+    * Orange trees' trunk circumference increases as they grow older and older.
+    * The growth rate is not stable. There are two turning points after which trees' growth rate speeds up, one happens at approximately age 484 and the other happens around age 1231.
+    * Once the tree is old enough, in this case reaching age 1372, the growth slows down. The trunk circumference grows slowly and literally remains the same since then.
+    
+- Future Steps
+
+    For next steps, it would be interesting to examine if the pattern applies to other orange trees also rather than only those sampled. Also we could look into the possible relationship between trees' trunk circumference and their ages.
